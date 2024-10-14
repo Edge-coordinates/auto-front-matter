@@ -9,11 +9,20 @@ const args = minimist(process.argv.slice(2), {
     'force': 'f',
     'dir': 'd',
   },
-  boolean: ['init'],
+  boolean: ['init', 'force'],
   'default': {
     'dir': process.cwd()
   }
 });
+
+if (args.help) {
+  console.log("Usage:");
+  console.log("  auto-front-matter --help // print help information");
+  console.log("  auto-front-matter // current folder as root");
+  console.log("  auto-front-matter --init (-i) // init model for the whole folder");
+  console.log("  auto-front-matter --force (-f) // use force model to cover the old front matter");
+  process.exit(0);
+}
 
 console.log(args);
 startSever(args.dir, args);
