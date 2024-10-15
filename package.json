@@ -1,12 +1,12 @@
 {
-  "name": "auto-front-matter",
-  "version": "0.0.1",
+  "name": "autofm",
+  "version": "1.0.2",
   "description": "Auto generate front matter to markdown files",
   "directories": {
     "lib": "lib"
   },
-  "bin": {
-    "auto-front-matter": "./bin/run.js"
+  "bin":{
+    "autofm": "./bin/run.js"
   },
   "preferGlobal": true,
   "keywords": [
@@ -34,6 +34,7 @@
   },
   "homepage": "https://github.com/Edge-coordinates/auto-front-matter",
   "files": [
+    "lib",
     "bin",
     "keys"
   ]

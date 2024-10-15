@@ -1,4 +1,4 @@
-# auto-front-matter
+# autofm
 Auto Front-matter generator
 
 It will auto generate frontMatter for markdown documents(.md) when file create  
@@ -19,24 +19,24 @@ categories:
 Install it as a command line tool via `npm -g`.
 
 ```sh
-npm install auto-front-matter -g
+npm install autofm -g
 ```
 
 ## Help
 
 ```sh
-$ auto-front-matter --help
+$ autofm --help
 Usage:
-  auto-front-matter --help // print help information
-  auto-front-matter // current folder as root
-  auto-front-matter --init (-i) // init model for the whole folder
-  auto-front-matter --force (-f) // use force model to cover the old front matter
+  autofm --help // print help information
+  autofm // current folder as root
+  autofm --init (-i) // init model for the whole folder
+  autofm --force (-f) // use force model to cover the old front matter
 ```
 
 ### Referenced libraries
 https://github.com/sisyphsu/hexo-enhancer
-https://www.npmjs.com/package/auto-front-matter
-https://www.npmjs.com/package/hexo-auto-front-matter
+https://www.npmjs.com/package/autofm
+https://www.npmjs.com/package/hexo-autofm
 
 ### Refer to the tutorial
 How to make Global NPM Package: https://obaranovskyi.medium.com/own-global-npm-module-in-5-minutes-efb5d734b033

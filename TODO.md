@@ -1,5 +1,5 @@
 ## 工作方式
-- 默认开启后不处理首批add事件（能做到嘛？），仅处理之后的add事件和change事件。
+- 根据文件创建事件生成日期，而不是当前事件（add事件当然就是当前时间啦！）
 - 补全/生成模式，同样启动看门狗，处理一开始的add事件，逐个文件判断 front-matter
 - frontMatterConfig.js support
 
