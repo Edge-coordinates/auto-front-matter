@@ -2,6 +2,7 @@
 - 根据文件创建事件生成日期，而不是当前事件（add事件当然就是当前时间啦！）
 - 补全/生成模式，同样启动看门狗，处理一开始的add事件，逐个文件判断 front-matter
 - frontMatterConfig.js support
+- 支持定制Key的顺序 [title, date, categories, tags] // 默认顺序
 
 ## Front-matter Example
 ```
