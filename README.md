@@ -22,6 +22,7 @@ Install it as a command line tool via `npm -g`.
 
 ```sh
 npm install autofm -g
+
 ```
 
 ## Help
