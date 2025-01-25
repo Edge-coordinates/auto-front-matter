@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import * as path from 'path';
 import * as YAML from "yaml";
 import chokidar from "chokidar";
 import relative from "relative";
@@ -26,12 +27,25 @@ let FolderPath = "";
 
 let defaultKeyOrder = ["title", "date", "categories", "tags"];
 
-export function startSever(path, args) {
-  FolderPath = path;
+let config: any = {
+  noCategory: [],
+}
+
+export function startSever(tpath, args) {
+  FolderPath = tpath;
+
+  // Read and parse the config file
+  const configFilePath = path.join(FolderPath, 'autofm-config.json');
+  if (fs.existsSync(configFilePath)) {
+    const configFileContent = fs.readFileSync(configFilePath, 'utf-8');
+    config = JSON.parse(configFileContent);
+  } else {
+    console.error(`Config file not found at ${configFilePath}`);
+  }
   // Initialize watcher.
-  watcher = chokidar.watch(path, {
-    ignored: (path, stats) =>
-      stats?.isFile() && !(path.endsWith(".md") || path.endsWith(".mdx")), // only watch js files
+  watcher = chokidar.watch(tpath, {
+    ignored: (tpath, stats) =>
+      stats?.isFile() && !(tpath.endsWith(".md") || tpath.endsWith(".mdx")), // only watch js files
     persistent: true,
   });
 
@@ -40,9 +54,9 @@ export function startSever(path, args) {
   // argument when available: https://nodejs.org/api/fs.html#fs_class_fs_stats
   if (args.init) {
     console.log("Init mode");
-    watcher.on("add", (path) => {
-      console.log(`File ${path} has been added`);
-      frontMatterUpdate(path, args);
+    watcher.on("add", (tpath) => {
+      console.log(`File ${tpath} has been added`);
+      frontMatterUpdate(tpath, args);
     });
     // TODO Use a lib to get all files in the folder
   }
@@ -63,12 +77,12 @@ export function startSever(path, args) {
 }
 
 function fileWatcher() {
-  watcher.on("add", (path) => {
-    console.log(`File ${path} has been added`);
-    initModel(path);
+  watcher.on("add", (tpath) => {
+    console.log(`File ${tpath} has been added`);
+    initModel(tpath);
   });
-  watcher.on("change", (path, stats) => {
-    if (stats) console.log(`File ${path} changed size to ${stats.size}`);
+  watcher.on("change", (tpath, stats) => {
+    if (stats) console.log(`File ${tpath} changed size to ${stats.size}`);
   });
 }
 
@@ -111,7 +125,7 @@ function frontMatterGenerator(filePath, content = "") {
   let categories = [[]];
   let parts = relativePath.split("/");
 
-  // console.log(path, filePath);
+  // console.log(tpath, filePath);
   // Generate a new front matter, according to file
   if (parts.length > 0) {
     let filename = parts[parts.length - 1];
@@ -139,7 +153,7 @@ function frontMatterGenerator(filePath, content = "") {
       break;
     }
     // TODO - We can provide several models to generate categories
-    if (categories[0].indexOf(part) < 0) {
+    if (categories[0].indexOf(part) < 0 && config.noCategory.indexOf(part) < 0) {
       categories[0].push(part);
     }
   }
@@ -188,10 +202,12 @@ function frontMatterUpdate(filePath, args) {
 
 // ANCHOR injectFrontMatter
 function injectFrontMatter(filePath, frontMatter, file: GrayMatterFile) {
-  if (frontMatter === null || _.isEqual(frontMatter, file.data)) {
+  if (frontMatter === null || frontMatter.notAutofm || _.isEqual(frontMatter, file.data)) {
     console.log(
       "No need to inject front matter",
-      _.isEqual(frontMatter, file.data)
+      _.isEqual(frontMatter, file.data),
+      "not autofm",
+      frontMatter.notAutofm,
     );
     return;
   }
@@ -217,20 +233,20 @@ function injectFrontMatter(filePath, frontMatter, file: GrayMatterFile) {
     frontMatter.date = generateCurrentDate();
   }
   // * Change categories to string
-  if (frontMatter.categories) {
-    for (let i = 0; i < frontMatter.categories.length; i++) {
-      if (frontMatter.categories[i] instanceof Array) {
-        if (frontMatter.categories[i].length > 1)
-          frontMatter.categories[i] = `[${frontMatter.categories[i].join(
-            ", "
-          )}]`;
-        else frontMatter.categories[i] = frontMatter.categories[i][0];
-      }
-    }
-  }
+  // if (frontMatter.categories) {
+  //   for (let i = 0; i < frontMatter.categories.length; i++) {
+  //     if (frontMatter.categories[i] instanceof Array) {
+  //       if (frontMatter.categories[i].length > 1)
+  //         frontMatter.categories[i] = `[${frontMatter.categories[i].join(
+  //           ", "
+  //         )}]`;
+  //       else frontMatter.categories[i] = frontMatter.categories[i][0];
+  //     }
+  //   }
+  // }
   let frontMatterContent = "---\n" + YAML.stringify(frontMatter) + "---\n";
   // Remove quotes around array elements
-  frontMatterContent = frontMatterContent.replace(/"\[(.*?)\]"/g, "[$1]");
+  // frontMatterContent = frontMatterContent.replace(/"\[(.*?)\]"/g, "[$1]");
   // Init Finished
   let finalContent = "";
   if (!file.content) finalContent = frontMatterContent;

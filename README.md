@@ -35,6 +35,13 @@ Usage:
   autofm --force (-f) // use force model to cover the old front matter
 ```
 
+## DEV
+```powershell
+pnpm build
+node ..\auto-front-matter\dist\index.js 
+```
+
+
 ## Working logic
 ### init model
 regenerate front-matter
