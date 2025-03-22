@@ -55,7 +55,7 @@ export function startSever(tpath, args) {
   if (args.init) {
     console.log("Init mode");
     watcher.on("add", (tpath) => {
-      console.log(`File ${tpath} has been added`);
+      // console.log(`File ${tpath} has been added`);
       frontMatterUpdate(tpath, args);
     });
     // TODO Use a lib to get all files in the folder
@@ -63,17 +63,17 @@ export function startSever(tpath, args) {
     // Re generate Categories and Tags
     console.log("Re generate Categories and Tags");
     watcher.on("add", (tpath) => {
-      console.log(`File ${tpath} has been added`);
+      // console.log(`File ${tpath} has been added`);
       frontMatterUpdate(tpath, args);
     });
   }
   watcher.on("ready", () => {
-    if (args.init) {
+    if (args.init || args.ct) {
       console.log("Initial scan complete.");
       watcher.close().then(() => {
         console.log('Watcher closed.');
         // console.log("You'd better wait for a while to make sure all write operations are finished.");
-        console.log("If you want to watch for changes, please restart the program without --init flag.");
+        console.log("If you want to watch for changes, please restart the program without --init or --ct flag.");
       });
         
     } else {
@@ -108,7 +108,7 @@ function checkNullObj(obj) {
 function initModel(filePath) {
   let file: any = readFile(filePath); // new file doesn't has content
   file = matter(file);
-  console.log("File doesn't has FrontMatter: ", checkNullObj(file.data));
+  // console.log("File doesn't has FrontMatter: ", checkNullObj(file.data));
   if (checkNullObj(file.data)) {
     console.log("New file");
     let frontMatter = frontMatterGenerator(filePath);
@@ -129,7 +129,7 @@ function toMoment(value) {
 function frontMatterGenerator(filePath, content = "") {
   const relativePath = relative.toBase(FolderPath, filePath);
   let title, date;
-  let categories = [[]];
+  let categories = [];
   let parts = relativePath.split("/");
 
   // console.log(tpath, filePath);
@@ -160,14 +160,14 @@ function frontMatterGenerator(filePath, content = "") {
       break;
     }
     // TODO - We can provide several models to generate categories
-    if (categories[0].indexOf(part) < 0 && config.noCategory.indexOf(part) < 0) {
-      categories[0].push(part);
+    if (categories.indexOf(part) < 0 && config.noCategory.indexOf(part) < 0) {
+      categories.push(part);
     }
   }
-  if (categories[0].length === 0) {
+  if (categories.length === 0) {
     categories = undefined;
-  } else if (categories[0].length === 1) {
-    categories[0] = categories[0][0];
+  } else if (categories.length === 1) {
+    categories = categories;
   }
   // console.log("Generated front matter: ");
   // console.log({ title, date, categories });
@@ -179,7 +179,7 @@ function frontMatterInit() {}
 function frontMatterUpdate(filePath, args) {
   const file: string = readFile(filePath); // new file doesn't has content
   let parsedFile: GrayMatterFile = matter(file);
-  console.log("File doesn't has FrontMatter: ", checkNullObj(parsedFile.data));
+  // console.log("File doesn't has FrontMatter: ", checkNullObj(parsedFile.data));
   if (checkNullObj(parsedFile.data)) {
     console.log("Empty file");
     let frontMatter = frontMatterGenerator(filePath);
@@ -202,7 +202,13 @@ function frontMatterUpdate(filePath, args) {
     !frontMatter.categories ||
     checkNullObj(frontMatter.categories)
   ) {
-    frontMatter.categories = generatedFrontMatter.categories;
+    if (!frontMatter.categories || checkNullObj(frontMatter.categories)){
+      frontMatter.categories = []
+      frontMatter.categories.push(generatedFrontMatter.categories)
+    }
+    else{
+      frontMatter.categories[0] = generatedFrontMatter.categories
+    }
   }
   injectFrontMatter(filePath, frontMatter, parsedFile);
 }
@@ -210,12 +216,12 @@ function frontMatterUpdate(filePath, args) {
 // ANCHOR injectFrontMatter
 function injectFrontMatter(filePath, frontMatter, file: GrayMatterFile) {
   if (frontMatter === null || frontMatter.notAutofm || _.isEqual(frontMatter, file.data)) {
-    console.log(
-      "No need to inject front matter",
-      _.isEqual(frontMatter, file.data),
-      "not autofm",
-      frontMatter.notAutofm,
-    );
+    // console.log(
+    //   "No need to inject front matter",
+    //   _.isEqual(frontMatter, file.data),
+    //   "not autofm",
+    //   frontMatter.notAutofm,
+    // );
     return;
   }
   // * Sort frontMatter by keyOrder
@@ -261,7 +267,7 @@ function injectFrontMatter(filePath, frontMatter, file: GrayMatterFile) {
   // console.log(finalContent);
   try {
     fs.writeFileSync(filePath, finalContent); //'a+' is append mode
-    console.log("FrontMatter injected successfully!");
+    console.log("FrontMatter injected successfully!", filePath);
   } catch (err) {
     console.error(err);
   }
@@ -275,7 +281,7 @@ function parseFrontMatter(filePath, content) {
   // Find the YAML front matter between "---" markers
   const frontMatterMatch = fileContent.match(/^---\n([\s\S]+?)\n---/);
   // output the front matter match
-  console.log("Match:\n", frontMatterMatch);
+  // console.log("Match:\n", frontMatterMatch);
   if (frontMatterMatch) {
     const frontMatterYaml = frontMatterMatch[1];
     // Parse the YAML content
