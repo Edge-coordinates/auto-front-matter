@@ -59,6 +59,13 @@ export function startSever(tpath, args) {
       frontMatterUpdate(tpath, args);
     });
     // TODO Use a lib to get all files in the folder
+  } else if(args.ct) {
+    // Re generate Categories and Tags
+    console.log("Re generate Categories and Tags");
+    watcher.on("add", (tpath) => {
+      console.log(`File ${tpath} has been added`);
+      frontMatterUpdate(tpath, args);
+    });
   }
   watcher.on("ready", () => {
     if (args.init) {
@@ -191,7 +198,7 @@ function frontMatterUpdate(filePath, args) {
     frontMatter.date = generatedFrontMatter.date;
   }
   if (
-    args.force ||
+    args.force || args.ct ||
     !frontMatter.categories ||
     checkNullObj(frontMatter.categories)
   ) {

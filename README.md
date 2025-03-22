@@ -34,6 +34,7 @@ Usage:
   autofm // current folder as root
   autofm --init (-i) // init model for the whole folder
   autofm --force (-f) // use force model to cover the old front matter
+  autofm --ct (-c) // Re generate categories and tags
 ```
 
 ## DEV
@@ -45,7 +46,13 @@ node ..\auto-front-matter\dist\index.js
 
 ## Working logic
 ### init model
+generate front-matter
+
+### force model
 regenerate front-matter
+
+### CT model
+
 
 ### normal model
 Add event: 
@@ -62,6 +69,12 @@ if oldMatter != new Matter:
 update()
 else:
 pass // Prevents add and change from being triggered repeatedly
+
+## Publish 
+```powershell
+pnpm build
+npm publish
+```
 
 ## Reference
 ### Referenced libraries

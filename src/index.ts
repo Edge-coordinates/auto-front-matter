@@ -8,8 +8,9 @@ const args = minimist(process.argv.slice(2), {
     'init': 'i',
     'force': 'f',
     'dir': 'd',
+    'ct' : 'c'
   },
-  boolean: ['init', 'force'],
+  boolean: ['init', 'force', 'ct'],
   'default': {
     'dir': process.cwd()
   }
