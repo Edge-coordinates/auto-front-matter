@@ -232,8 +232,11 @@ export class FrontMatterProcessor {
                 preservedTail = [existing];
               }
             }
-
-            frontMatter.categories = [generatedChain, ...preservedTail];
+            if (args.force) {
+              frontMatter.categories = [generatedChain];
+            } else {
+              frontMatter.categories = [generatedChain, ...preservedTail];
+            }
             logger.debug(
               `Replaced primary hierarchical category chain for ${filePath}: [${
                 generatedChain.join(" > ")
@@ -510,7 +513,7 @@ export class FrontMatterProcessor {
     let normalized = name
       .trim()
       // 将多个空格转换为单个连字符
-      .replace(/\s+/g, "-")
+      .replace(/\s+/g, "-");
     // let normalized = name
     //   .trim()
     //   // 保留原始大小写，只处理特殊字符
@@ -656,7 +659,7 @@ export class FrontMatterProcessor {
     );
 
     // 规范化分类名称
-    categories = categories.map(cat => this.normalizeCategoryName(cat)).filter(cat => cat !== '');
+    categories = categories.map(cat => this.normalizeCategoryName(cat)).filter(cat => cat !== "");
 
     // 去重
     categories = [...new Set(categories)];
