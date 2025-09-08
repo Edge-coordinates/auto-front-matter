@@ -5,6 +5,10 @@ date: 2025/09/09 03:18:38
 **It will break you blog, do not use it now！！！！**  
 
 # autofm
+
+本地安装和调试
+npm install -g .
+
 Auto Front-matter generator
 
 It will auto generate frontMatter for markdown documents(.md) when file create  

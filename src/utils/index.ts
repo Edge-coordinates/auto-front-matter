@@ -94,14 +94,26 @@ export function isEmptyObject(obj: any): boolean {
  * @returns 文件信息
  */
 export function parseFileInfo(filePath: string, basePath: string): FileInfo {
-  const relativePath = relative.toBase(basePath, filePath);
+  // 确保路径是绝对路径
+  const absoluteFilePath = path.resolve(filePath);
+  const absoluteBasePath = path.resolve(basePath);
+  
+  // 计算相对路径
+  const relativePath = path.relative(absoluteBasePath, absoluteFilePath);
+  
   const fileName = path.basename(filePath);
   const extension = path.extname(filePath);
   const baseName = path.basename(filePath, extension);
-  const parts = relativePath.split(path.sep).filter(part => part && part !== '.');
+  
+  // 分割路径，过滤空字符串和当前目录标识
+  const parts = relativePath.split(path.sep).filter(part => part && part !== '.' && part !== '');
+  
+  logger.debug(`parseFileInfo: filePath=${filePath}, basePath=${basePath}`);
+  logger.debug(`parseFileInfo: absoluteFilePath=${absoluteFilePath}, absoluteBasePath=${absoluteBasePath}`);
+  logger.debug(`parseFileInfo: relativePath=${relativePath}, parts=[${parts.join(', ')}]`);
 
   return {
-    filePath,
+    filePath: absoluteFilePath,
     relativePath,
     fileName,
     baseName,

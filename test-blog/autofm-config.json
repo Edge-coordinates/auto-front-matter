@@ -1,0 +1,26 @@
+{
+  "noCategory": ["assets", "images", "public", "static"],
+  "keyOrder": ["title", "date", "categories", "tags"],
+  "dateFormat": "YYYY-MM-DD HH:mm:ss",
+  "timezone": "Asia/Shanghai",
+  "categoryMode": "hierarchy",
+  "protectedFields": ["date", "abbrlink", "permalink", "uuid"],
+  "backup": {
+    "enabled": false,
+    "directory": ".autofm-backup",
+    "maxFiles": 10
+  },
+  "templates": {
+    "default": {
+      "title": "{title}",
+      "date": "",
+      "categories": [],
+      "tags": []
+    }
+  },
+  "filePatterns": {
+    "posts": "_posts",
+    "drafts": "_drafts"
+  },
+  "customFields": {}
+}

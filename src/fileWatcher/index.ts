@@ -26,6 +26,7 @@ export class FileWatcherManager {
   private frontMatterProcessor: FrontMatterProcessor;
   private backupManager: BackupManager;
   private isInitialized: boolean = false;
+  private canUpdateTitle: boolean = false;
 
   constructor(
     folderPath: string, 
@@ -46,6 +47,9 @@ export class FileWatcherManager {
     try {
       const watcherConfig = this.createWatcherConfig();
       
+      // 在启动时关闭标题更新，等待 ready 事件开启
+      this.canUpdateTitle = false;
+
       this.watcher = chokidar.watch(this.folderPath, {
         ignored: this.createIgnoreFunction(),
         persistent: true,
@@ -73,6 +77,7 @@ export class FileWatcherManager {
       await this.watcher.close();
       this.watcher = null;
       this.isInitialized = false;
+      this.canUpdateTitle = false;
       logger.info('File watcher stopped');
     }
   }
@@ -140,6 +145,8 @@ export class FileWatcherManager {
           logger.info("If you want to watch for changes, please restart the program without --init or --ct flag.");
         });
       } else {
+        // 只有在 ready 且非一次性执行模式下，才允许更新标题
+        this.canUpdateTitle = true;
         this.setupContinuousWatching();
         logger.info("Initial scan complete. Server is ready for changes");
       }
@@ -209,6 +216,13 @@ export class FileWatcherManager {
         this.frontMatterProcessor.initializeFrontMatter(filePath);
       }
 
+      // 每次文件作为“新文件”被 chokidar 报告（包括重命名 unlink+add）时，同步标题
+      if (this.canUpdateTitle) {
+        this.frontMatterProcessor.updateTitleFromFileName(filePath);
+      } else {
+        logger.debug(`Skip title update before ready: ${filePath}`);
+      }
+
       return { 
         success: true, 
         message: 'File processed successfully', 
@@ -238,6 +252,9 @@ export class FileWatcherManager {
       
       // 延迟处理，避免频繁的文件变更
       await delay(200);
+
+      // 文件内容变更时，更新 updated 字段
+      this.frontMatterProcessor.updateUpdatedField(filePath);
 
       return { 
         success: true, 

@@ -31,6 +31,8 @@ export class CLICommands {
     console.log("\n=== Configuration ===");
     console.log(`Date Format: ${status.config.dateFormat}`);
     console.log(`Timezone: ${status.config.timezone}`);
+    console.log(`Category Mode: ${status.config.categoryMode}`);
+    console.log(`Protected Fields: ${status.config.protectedFields?.join(', ')}`);
     console.log(`Backup Enabled: ${status.config.backup.enabled}`);
     console.log(`Templates: ${Object.keys(status.config.templates).join(', ')}`);
     console.log("===============================\n");
@@ -180,6 +182,8 @@ export class CLICommands {
       console.log(`✓ Date format: ${config.dateFormat}`);
       console.log(`✓ Timezone: ${config.timezone}`);
       console.log(`✓ Key order: ${config.keyOrder.join(', ')}`);
+      console.log(`✓ Category mode: ${config.categoryMode}`);
+      console.log(`✓ Protected fields: ${config.protectedFields?.join(', ')}`);
       
       // 验证模板
       const templateManager = this.service.getTemplateManager();
@@ -197,6 +201,97 @@ export class CLICommands {
       logger.info("Configuration validation completed");
     } catch (error) {
       logger.error(`Configuration validation failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 显示分类报告
+   */
+  async categoryReport(directoryPath?: string): Promise<void> {
+    try {
+      const targetPath = directoryPath || this.service.getStatus().folderPath;
+      const frontMatterProcessor = this.service.getFrontMatterProcessor();
+      
+      // 获取所有Markdown文件
+      const glob = await import('glob');
+      const files = glob.globSync('**/*.{md,mdx}', { 
+        cwd: targetPath,
+        absolute: true,
+        ignore: ['node_modules/**', '.git/**', 'dist/**', 'build/**']
+      });
+      
+      const report = frontMatterProcessor.generateCategoryReport(files);
+      
+      console.log("\n=== Category Analysis Report ===");
+      console.log(`Total Files: ${report.totalFiles}`);
+      console.log(`Categorized Files: ${report.categorizedFiles}`);
+      console.log(`Uncategorized Files: ${report.uncategorizedFiles}`);
+      console.log(`Category Coverage: ${((report.categorizedFiles / report.totalFiles) * 100).toFixed(1)}%`);
+      
+      console.log("\n=== Category Counts ===");
+      Object.entries(report.categoryCounts).forEach(([category, count]) => {
+        console.log(`${category}: ${count} files`);
+      });
+      
+      if (report.suggestions.length > 0) {
+        console.log("\n=== Suggestions ===");
+        report.suggestions.slice(0, 10).forEach(suggestion => {
+          console.log(`- ${suggestion}`);
+        });
+        if (report.suggestions.length > 10) {
+          console.log(`... and ${report.suggestions.length - 10} more suggestions`);
+        }
+      }
+      
+      console.log("===============================\n");
+    } catch (error) {
+      logger.error(`Failed to generate category report: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 修复分类结构
+   */
+  async fixCategories(filePaths?: string[]): Promise<void> {
+    try {
+      const frontMatterProcessor = this.service.getFrontMatterProcessor();
+      let targetFiles = filePaths;
+      
+      if (!targetFiles) {
+        // 获取所有Markdown文件
+        const glob = await import('glob');
+        targetFiles = glob.globSync('**/*.{md,mdx}', { 
+          cwd: this.service.getStatus().folderPath,
+          absolute: true,
+          ignore: ['node_modules/**', '.git/**', 'dist/**', 'build/**']
+        });
+      }
+      
+      logger.info(`Fixing categories for ${targetFiles.length} files...`);
+      
+      let fixedCount = 0;
+      for (const filePath of targetFiles) {
+        try {
+          const file = frontMatterProcessor.parseFrontMatter(filePath);
+          const originalFrontMatter = { ...file.data };
+          
+          const fixedFrontMatter = frontMatterProcessor.validateAndFixCategories(file.data, filePath);
+          
+          if (JSON.stringify(originalFrontMatter.categories) !== JSON.stringify(fixedFrontMatter.categories)) {
+            frontMatterProcessor.injectFrontMatter(filePath, fixedFrontMatter, file);
+            fixedCount++;
+            logger.info(`Fixed categories for: ${path.basename(filePath)}`);
+          }
+        } catch (error) {
+          logger.error(`Failed to fix categories for ${filePath}: ${error.message}`);
+        }
+      }
+      
+      logger.info(`Categories fixed for ${fixedCount} files`);
+    } catch (error) {
+      logger.error(`Failed to fix categories: ${error.message}`);
       throw error;
     }
   }

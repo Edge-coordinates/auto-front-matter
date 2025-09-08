@@ -1,8 +1,10 @@
 {
-  "noCategory": ["assets", "images", "public", "static"],
-  "keyOrder": ["title", "date", "categories", "tags", "author", "draft"],
+  "noCategory": ["assets", "images", "public", "static", "node_modules", "dist", "build"],
+  "keyOrder": ["title", "date", "categories", "tags", "author", "draft", "abbrlink"],
   "dateFormat": "YYYY-MM-DD HH:mm:ss",
   "timezone": "Asia/Shanghai",
+  "categoryMode": "hierarchy",
+  "protectedFields": ["date", "abbrlink", "permalink", "uuid", "updated"],
   "backup": {
     "enabled": true,
     "directory": ".autofm-backup",
@@ -47,6 +49,14 @@
       "difficulty": "beginner",
       "duration": "30 minutes",
       "prerequisites": []
+    },
+    "hexo": {
+      "title": "{title}",
+      "date": "",
+      "categories": [],
+      "tags": [],
+      "description": "",
+      "keywords": []
     }
   },
   "filePatterns": {
