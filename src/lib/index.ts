@@ -1,308 +1,125 @@
-import fs from "fs-extra";
-import * as path from 'path';
-import * as YAML from "yaml";
-import chokidar from "chokidar";
-import relative from "relative";
-import moment from "moment-timezone";
-import matter from "gray-matter";
-import { exit } from "process";
+import { CLIArgs } from "../types/index.js";
+import { logger } from "../utils/index.js";
+import { ConfigManager } from "../config/index.js";
+import { FrontMatterProcessor } from "../frontMatter/index.js";
+import { FileWatcherManager } from "../fileWatcher/index.js";
+import { BackupManager } from "../backup/index.js";
+import { TemplateManager, initializePredefinedTemplates } from "../template/index.js";
 
-import _ from "lodash";
+/**
+ * 应用程序主服务类
+ */
+export class AutoFrontMatterService {
+  private folderPath: string;
+  private configManager: ConfigManager;
+  private frontMatterProcessor: FrontMatterProcessor;
+  private fileWatcherManager: FileWatcherManager;
+  private backupManager: BackupManager;
+  private templateManager: TemplateManager;
 
-interface GrayMatterFile {
-  data: { [key: string]: any };
-  content: string;
-  excerpt?: string;
-  orig: Buffer | any;
-  language: string;
-  matter: string;
-  stringify(lang: string): string;
-  isEmpty?: boolean;
-}
-let watcher = null;
-const reg = /^.?(\d{4})[-_]?(\d{2})[-_]?(\d{2}).?[-_.@# ]*(.*)$/;
-const postDir = "_posts";
-const draftDir = "_drafts";
-let FolderPath = "";
-
-let defaultKeyOrder = ["title", "date", "categories", "tags"];
-
-let config: any = {
-  noCategory: [],
-}
-
-export function startSever(tpath, args) {
-  FolderPath = tpath;
-
-  // Read and parse the config file
-  const configFilePath = path.join(FolderPath, 'autofm-config.json');
-  if (fs.existsSync(configFilePath)) {
-    const configFileContent = fs.readFileSync(configFilePath, 'utf-8');
-    config = JSON.parse(configFileContent);
-  } else {
-    console.error(`Config file not found at ${configFilePath}`);
+  constructor(folderPath: string) {
+    this.folderPath = folderPath;
+    this.configManager = new ConfigManager(folderPath);
+    this.frontMatterProcessor = new FrontMatterProcessor(folderPath, this.configManager);
+    this.backupManager = new BackupManager(folderPath, this.configManager);
+    this.templateManager = new TemplateManager(folderPath, this.configManager);
+    this.fileWatcherManager = new FileWatcherManager(
+      folderPath,
+      this.configManager,
+      this.frontMatterProcessor,
+      this.backupManager
+    );
   }
-  // Initialize watcher.
-  watcher = chokidar.watch(tpath, {
-    ignored: (tpath, stats) =>
-      stats?.isFile() && !(tpath.endsWith(".md") || tpath.endsWith(".mdx")), // only watch js files
-    persistent: true,
-  });
 
-  // * deal with old documents
-  // 'add', 'addDir' and 'change' events also receive stat() results as second
-  // argument when available: https://nodejs.org/api/fs.html#fs_class_fs_stats
-  if (args.init) {
-    console.log("Init mode");
-    watcher.on("add", (tpath) => {
-      // console.log(`File ${tpath} has been added`);
-      frontMatterUpdate(tpath, args);
-    });
-    // TODO Use a lib to get all files in the folder
-  } else if(args.ct) {
-    // Re generate Categories and Tags
-    console.log("Re generate Categories and Tags");
-    watcher.on("add", (tpath) => {
-      // console.log(`File ${tpath} has been added`);
-      frontMatterUpdate(tpath, args);
-    });
-  }
-  watcher.on("ready", () => {
-    if (args.init || args.ct) {
-      console.log("Initial scan complete.");
-      watcher.close().then(() => {
-        console.log('Watcher closed.');
-        // console.log("You'd better wait for a while to make sure all write operations are finished.");
-        console.log("If you want to watch for changes, please restart the program without --init or --ct flag.");
-      });
-        
-    } else {
-      fileWatcher(); // Watch for changes in files
-      console.log("Initial scan complete. Sever is ready for changes");
-    }
-  });
-}
+  /**
+   * 启动服务
+   */
+  async start(args: CLIArgs): Promise<void> {
+    try {
+      logger.info(`Starting AutoFrontMatter service in: ${this.folderPath}`);
 
-function fileWatcher() {
-  watcher.on("add", (tpath) => {
-    console.log(`File ${tpath} has been added`);
-    initModel(tpath);
-  });
-  watcher.on("change", (tpath, stats) => {
-    if (stats) console.log(`File ${tpath} changed size to ${stats.size}`);
-  });
-}
+      // 加载配置
+      await this.configManager.loadConfig();
 
-function readFile(filePath): string {
-  // * If we need to support other codecs, we can use iconv-lite
-  const data = fs.readFileSync(filePath, "utf8");
-  return data;
-}
+      // 初始化预定义模板
+      initializePredefinedTemplates(this.configManager);
 
-function checkNullObj(obj) {
-  return Object.keys(obj).length === 0;
-}
+      // 启动文件监控
+      await this.fileWatcherManager.startWatcher(args);
 
-// file.empty {String}: when the front-matter is "empty" (either all whitespace, nothing at all, or just comments and no data), the original string is set on this property. See #65 for details regarding use case.
-// file.isEmpty {Boolean}: true if front-matter is empty.
-function initModel(filePath) {
-  let file: any = readFile(filePath); // new file doesn't has content
-  file = matter(file);
-  // console.log("File doesn't has FrontMatter: ", checkNullObj(file.data));
-  if (checkNullObj(file.data)) {
-    console.log("New file");
-    let frontMatter = frontMatterGenerator(filePath);
-    injectFrontMatter(filePath, frontMatter, file);
-  }
-}
-
-function updateModel() {}
-
-// copy from hexo
-function toMoment(value) {
-  // ! This won't work!!!!
-  // You need to update by yourself
-  if (moment.isMoment(value)) return moment(value);
-  return moment(value);
-}
-
-function frontMatterGenerator(filePath, content = "") {
-  const relativePath = relative.toBase(FolderPath, filePath);
-  let title, date;
-  let categories = [];
-  let parts = relativePath.split("/");
-
-  // console.log(tpath, filePath);
-  // Generate a new front matter, according to file
-  if (parts.length > 0) {
-    let filename = parts[parts.length - 1];
-    if (filename.indexOf(".") >= 0) {
-      filename = filename.substring(0, filename.indexOf("."));
-    }
-    let match = filename.match(reg);
-    if (match) {
-      date = toMoment(`${match[1]}-${match[2]}-${match[3]}`);
-      title = match[4];
-    } else {
-      title = filename;
-      date = generateCurrentDate();
+      logger.info("AutoFrontMatter service started successfully");
+    } catch (error) {
+      logger.error(`Failed to start service: ${error.message}`);
+      throw error;
     }
   }
-  for (let i = 0; i <= parts.length - 2; i++) {
-    let part = parts[i];
-    if (
-      !part ||
-      part === "~" ||
-      part === "." ||
-      part === postDir ||
-      part === draftDir
-    ) {
-      break;
-    }
-    // TODO - We can provide several models to generate categories
-    if (categories.indexOf(part) < 0 && config.noCategory.indexOf(part) < 0) {
-      categories.push(part);
-    }
-  }
-  if (categories.length === 0) {
-    categories = undefined;
-  } else if (categories.length === 1) {
-    categories = categories;
-  }
-  // console.log("Generated front matter: ");
-  // console.log({ title, date, categories });
-  return { title, date, categories };
-}
 
-function frontMatterInit() {}
-
-function frontMatterUpdate(filePath, args) {
-  const file: string = readFile(filePath); // new file doesn't has content
-  let parsedFile: GrayMatterFile = matter(file);
-  // console.log("File doesn't has FrontMatter: ", checkNullObj(parsedFile.data));
-  if (checkNullObj(parsedFile.data)) {
-    console.log("Empty file");
-    let frontMatter = frontMatterGenerator(filePath);
-    console.log(frontMatter);
-    injectFrontMatter(filePath, frontMatter, parsedFile);
-    return;
-  }
-  let frontMatter = _.cloneDeep(parsedFile.data);
-  // console.log(parsedFile);
-  let generatedFrontMatter = frontMatterGenerator(filePath);
-  if (args.force || frontMatter.title === undefined) {
-    frontMatter.title = generatedFrontMatter.title;
-  }
-  if (frontMatter.date === undefined) {
-    // never force update date
-    frontMatter.date = generatedFrontMatter.date;
-  }
-  if (
-    args.force || args.ct ||
-    !frontMatter.categories ||
-    checkNullObj(frontMatter.categories)
-  ) {
-    if (!frontMatter.categories || checkNullObj(frontMatter.categories)){
-      frontMatter.categories = []
-      frontMatter.categories.push(generatedFrontMatter.categories)
-    }
-    else{
-      frontMatter.categories[0] = generatedFrontMatter.categories
+  /**
+   * 停止服务
+   */
+  async stop(): Promise<void> {
+    try {
+      await this.fileWatcherManager.stopWatcher();
+      logger.info("AutoFrontMatter service stopped");
+    } catch (error) {
+      logger.error(`Failed to stop service: ${error.message}`);
+      throw error;
     }
   }
-  injectFrontMatter(filePath, frontMatter, parsedFile);
-}
 
-// ANCHOR injectFrontMatter
-function injectFrontMatter(filePath, frontMatter, file: GrayMatterFile) {
-  if (frontMatter === null || frontMatter.notAutofm || _.isEqual(frontMatter, file.data)) {
-    // console.log(
-    //   "No need to inject front matter",
-    //   _.isEqual(frontMatter, file.data),
-    //   "not autofm",
-    //   frontMatter.notAutofm,
-    // );
-    return;
+  /**
+   * 获取服务状态
+   */
+  getStatus(): any {
+    return {
+      folderPath: this.folderPath,
+      watching: this.fileWatcherManager.isWatching(),
+      config: this.configManager.getConfig(),
+      watcherStats: this.fileWatcherManager.getWatcherStats()
+    };
   }
-  // * Sort frontMatter by keyOrder
-  let keyOrder = defaultKeyOrder;
-  // Sort the frontMatter object based on the key order
-  const sortedFrontMatter = {};
-  keyOrder.forEach((key) => {
-    if (frontMatter.hasOwnProperty(key)) {
-      sortedFrontMatter[key] = frontMatter[key];
-    }
-  });
 
-  // Add any remaining keys that were not in the keyOrder
-  Object.keys(frontMatter).forEach((key) => {
-    if (!sortedFrontMatter.hasOwnProperty(key)) {
-      sortedFrontMatter[key] = frontMatter[key];
-    }
-  });
-  frontMatter = sortedFrontMatter;
-  // Is the next If module necessary?
-  if (frontMatter.date === undefined) {
-    frontMatter.date = generateCurrentDate();
+  /**
+   * 获取配置管理器
+   */
+  getConfigManager(): ConfigManager {
+    return this.configManager;
   }
-  // * Change categories to string
-  // if (frontMatter.categories) {
-  //   for (let i = 0; i < frontMatter.categories.length; i++) {
-  //     if (frontMatter.categories[i] instanceof Array) {
-  //       if (frontMatter.categories[i].length > 1)
-  //         frontMatter.categories[i] = `[${frontMatter.categories[i].join(
-  //           ", "
-  //         )}]`;
-  //       else frontMatter.categories[i] = frontMatter.categories[i][0];
-  //     }
-  //   }
-  // }
-  let frontMatterContent = "---\n" + YAML.stringify(frontMatter) + "---\n";
-  // Remove quotes around array elements
-  // frontMatterContent = frontMatterContent.replace(/"\[(.*?)\]"/g, "[$1]");
-  // Init Finished
-  let finalContent = "";
-  if (!file.content) finalContent = frontMatterContent;
-  else finalContent = frontMatterContent + file.content;
-  // console.log(finalContent);
-  try {
-    fs.writeFileSync(filePath, finalContent); //'a+' is append mode
-    console.log("FrontMatter injected successfully!", filePath);
-  } catch (err) {
-    console.error(err);
-  }
-  // console.log("FrontMatter injected finished");
-}
 
-function parseFrontMatter(filePath, content) {
-  // Read the file content
-  const fileContent = content;
-  // TODO - according to the config, we can rename the file with date
-  // Find the YAML front matter between "---" markers
-  const frontMatterMatch = fileContent.match(/^---\n([\s\S]+?)\n---/);
-  // output the front matter match
-  // console.log("Match:\n", frontMatterMatch);
-  if (frontMatterMatch) {
-    const frontMatterYaml = frontMatterMatch[1];
-    // Parse the YAML content
-    const frontMatter = YAML.parse(frontMatterYaml);
-    return frontMatter;
-  } else {
-    console.error("No front matter found");
-    return null;
+  /**
+   * 获取Front Matter处理器
+   */
+  getFrontMatterProcessor(): FrontMatterProcessor {
+    return this.frontMatterProcessor;
+  }
+
+  /**
+   * 获取备份管理器
+   */
+  getBackupManager(): BackupManager {
+    return this.backupManager;
+  }
+
+  /**
+   * 获取模板管理器
+   */
+  getTemplateManager(): TemplateManager {
+    return this.templateManager;
+  }
+
+  /**
+   * 获取文件监控管理器
+   */
+  getFileWatcherManager(): FileWatcherManager {
+    return this.fileWatcherManager;
   }
 }
 
-function generateCurrentDate() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1; // 月份从0开始，所以需要加1
-  const day = now.getDate();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-
-  // 格式化日期和时间
-  const formattedDate = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
-  return formattedDate;
+/**
+ * 启动服务器的主函数（保持向后兼容）
+ */
+export async function startServer(tpath: string, args: CLIArgs): Promise<AutoFrontMatterService> {
+  const service = new AutoFrontMatterService(tpath);
+  await service.start(args);
+  return service;
 }

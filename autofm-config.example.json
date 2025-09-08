@@ -1,0 +1,60 @@
+{
+  "noCategory": ["assets", "images", "public", "static"],
+  "keyOrder": ["title", "date", "categories", "tags", "author", "draft"],
+  "dateFormat": "YYYY-MM-DD HH:mm:ss",
+  "timezone": "Asia/Shanghai",
+  "backup": {
+    "enabled": true,
+    "directory": ".autofm-backup",
+    "maxFiles": 20
+  },
+  "templates": {
+    "default": {
+      "title": "{title}",
+      "date": "",
+      "categories": [],
+      "tags": []
+    },
+    "blog": {
+      "title": "{title}",
+      "date": "",
+      "categories": [],
+      "tags": [],
+      "author": "AutoFM",
+      "draft": false,
+      "description": ""
+    },
+    "note": {
+      "title": "{title}",
+      "date": "",
+      "type": "note",
+      "tags": [],
+      "private": false
+    },
+    "journal": {
+      "title": "{date} Journal",
+      "date": "",
+      "type": "journal",
+      "mood": "",
+      "weather": "",
+      "tags": ["journal"]
+    },
+    "tutorial": {
+      "title": "{title}",
+      "date": "",
+      "categories": ["tutorial"],
+      "tags": [],
+      "difficulty": "beginner",
+      "duration": "30 minutes",
+      "prerequisites": []
+    }
+  },
+  "filePatterns": {
+    "posts": "_posts",
+    "drafts": "_drafts"
+  },
+  "customFields": {
+    "generator": "AutoFrontMatter",
+    "version": "2.0.0"
+  }
+}

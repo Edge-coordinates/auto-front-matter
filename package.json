@@ -1,7 +1,7 @@
 {
   "name": "autofm",
-  "version": "1.1.8",
-  "description": "Auto generate front matter to markdown files",
+  "version": "2.0.0",
+  "description": "Advanced auto front matter generator with modular architecture, templates, backup, and monitoring",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -17,10 +17,16 @@
   },
   "preferGlobal": true,
   "keywords": [
-    "Hexo",
+    "front matter",
     "markdown",
-    "server",
-    "file processing"
+    "automation",
+    "file processing",
+    "hexo",
+    "blog",
+    "template",
+    "backup",
+    "monitoring",
+    "typescript"
   ],
   "author": "Edge-coordinates",
   "license": "GPL-3.0-only",
