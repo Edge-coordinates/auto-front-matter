@@ -4,6 +4,7 @@ import * as YAML from "yaml";
 import { ConfigManager } from "../config/index.js";
 import { AppConfig, AutoFMError, CLIArgs, FileInfo, FrontMatterData, GrayMatterFile } from "../types/index.js";
 import {
+  generateAbbrlink,
   generateCurrentDate,
   isEmptyObject,
   logger,
@@ -99,12 +100,19 @@ export class FrontMatterProcessor {
       }
     }
 
+    // 生成 abbrlink
+    let abbrlink: string = "";
+    if (config.abbrlink.enabled) {
+      abbrlink = generateAbbrlink(title, config.abbrlink.algorithm, config.abbrlink.representation);
+    }
+
     // 构建Front Matter数据
     const frontMatter: FrontMatterData = {
       title,
       date,
       ...(categories && categories.length > 0 && { categories }),
       ...(tags.length > 0 && { tags }),
+      ...(abbrlink && { abbrlink }),
     };
 
     // 添加自定义字段
@@ -273,7 +281,9 @@ export class FrontMatterProcessor {
       let frontMatter = _.cloneDeep(file.data || {});
       const config = this.configManager.getConfig();
       frontMatter.updated = generateCurrentDate(config.dateFormat, config.timezone);
-      this.injectFrontMatter(filePath, frontMatter, file);
+      // sort front matter
+      const sortedFrontMatter = this.sortFrontMatterKeys(frontMatter);
+      this.injectFrontMatter(filePath, sortedFrontMatter, file);
       logger.info(`Updated 'updated' field for: ${filePath}`);
     } catch (error) {
       logger.error(`Failed to update 'updated' field for ${filePath}: ${error.message}`);

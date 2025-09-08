@@ -4,6 +4,10 @@ import relative from "relative";
 import moment from "moment-timezone";
 import { FileInfo, FILE_NAME_REGEX, LogLevel, AutoFMError } from "../types/index.js";
 
+import { generateAbbrlink } from "./abbrlink.js";
+
+export { generateAbbrlink };
+
 // 日志工具
 class Logger {
   private level: LogLevel = LogLevel.INFO;

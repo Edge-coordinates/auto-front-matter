@@ -33,6 +33,11 @@ export interface AppConfig {
   timezone?: string;
   categoryMode?: 'hierarchy' | 'flat' | 'parent-only'; // 分类生成模式
   protectedFields?: string[]; // 受保护的字段，不会被更新
+  abbrlink?: {
+    enabled: boolean;
+    algorithm: string;
+    representation: string;
+  };
   backup?: {
     enabled: boolean;
     directory: string;
@@ -113,11 +118,16 @@ export enum LogLevel {
 // 默认配置常量
 export const DEFAULT_CONFIG: AppConfig = {
   noCategory: [],
-  keyOrder: ["title", "date", "updated", "categories", "tags"],
+  keyOrder: ["title", "date", "updated", "categories", "tags", "abbrlink"],
   dateFormat: "YYYY/MM/DD HH:mm:ss",
   timezone: "Asia/Shanghai",
   categoryMode: "hierarchy", // 默认使用层级模式
   protectedFields: ["date", "abbrlink", "permalink", "uuid"], // 默认受保护字段
+  abbrlink: {
+    enabled: true,
+    algorithm: "crc32",
+    representation: "hex"
+  },
   backup: {
     enabled: false,
     directory: ".autofm-backup",
