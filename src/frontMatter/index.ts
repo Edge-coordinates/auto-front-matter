@@ -103,7 +103,8 @@ export class FrontMatterProcessor {
     // 生成 abbrlink
     let abbrlink: string = "";
     if (config.abbrlink.enabled) {
-      abbrlink = generateAbbrlink(title, config.abbrlink.algorithm, config.abbrlink.representation);
+      // abbrlink = generateAbbrlink(title, config.abbrlink.algorithm, config.abbrlink.representation);
+      abbrlink = generateAbbrlink(fileInfo.relativePath, config.abbrlink.algorithm, config.abbrlink.representation);
     }
 
     // 构建Front Matter数据
@@ -263,6 +264,11 @@ export class FrontMatterProcessor {
         if (generatedFrontMatter.tags && generatedFrontMatter.tags.length > 0) {
           frontMatter.tags = generatedFrontMatter.tags;
         }
+      }
+
+      // init abbrlink
+      if (args.init && !frontMatter.abbrlink) {
+        frontMatter.abbrlink = generatedFrontMatter.abbrlink;
       }
 
       this.injectFrontMatter(filePath, frontMatter, file);
