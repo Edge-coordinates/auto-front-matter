@@ -1,0 +1,34 @@
+{
+  "noCategory": ["assets", "images", "public", "static", "node_modules", "dist", "build"],
+  "keyOrder": ["title", "date", "updated", "categories", "tags", "author", "draft", "abbrlink"],
+  "dateFormat": "YYYY-MM-DD HH:mm:ss",
+  "timezone": "Asia/Shanghai",
+  "categoryMode": "hierarchy",
+  "protectedFields": ["date", "abbrlink", "permalink", "uuid"],
+  "abbrlink": {
+    "enabled": true,
+    "algorithm": "crc32",
+    "representation": "hex"
+  },
+  "backup": {
+    "enabled": true,
+    "directory": ".autofm/backup",
+    "maxFiles": 20
+  },
+  "templates": {
+    "default": {
+      "title": "{title}",
+      "date": "",
+      "categories": [],
+      "tags": [],
+      "author": "",
+      "draft": false,
+      "description": ""
+    }
+  },
+  "filePatterns": {
+    "posts": "_posts",
+    "drafts": "_drafts"
+  },
+  "customFields": {}
+}

@@ -22,7 +22,18 @@ export interface CLIArgs {
   backup?: boolean;
   template?: string;
   verbose?: boolean;
+  config?: string;
+  preset?: string;
+  initConfig?: boolean;
   _?: string[];
+}
+
+export type ConfigSource = "explicit" | "project" | "legacy" | "user" | "default";
+
+export interface ResolvedConfig {
+  path: string;
+  source: Exclude<ConfigSource, "default">;
+  deprecated: boolean;
 }
 
 // 应用配置类型
@@ -130,7 +141,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   },
   backup: {
     enabled: false,
-    directory: ".autofm-backup",
+    directory: ".autofm/backup",
     maxFiles: 10
   },
   templates: {

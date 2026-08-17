@@ -21,6 +21,8 @@ export class CLICommands {
     
     console.log("\n=== AutoFrontMatter Status ===");
     console.log(`Folder: ${status.folderPath}`);
+    console.log(`Config: ${status.configPath || '(built-in defaults)'}`);
+    console.log(`Config source: ${status.configSource}`);
     console.log(`Watching: ${status.watching ? 'Yes' : 'No'}`);
     
     if (status.watcherStats) {
@@ -181,7 +183,7 @@ export class CLICommands {
       // 验证基本配置
       console.log(`✓ Date format: ${config.dateFormat}`);
       console.log(`✓ Timezone: ${config.timezone}`);
-      console.log(`✓ Key order: ${config.keyOrder.join(', ')}`);
+      console.log(`✓ Key order: ${config.keyOrder?.join(', ')}`);
       console.log(`✓ Category mode: ${config.categoryMode}`);
       console.log(`✓ Protected fields: ${config.protectedFields?.join(', ')}`);
       

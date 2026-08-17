@@ -95,7 +95,7 @@ export class FileWatcherManager {
   private createWatcherConfig(): WatcherConfig {
     return {
       extensions: ['.md', '.mdx', '.markdown'],
-      ignored: ['node_modules', '.git', 'dist', 'build', '.autofm-backup'],
+      ignored: ['node_modules', '.git', 'dist', 'build', '.autofm', '.autofm-backup'],
       persistent: true
     };
   }
@@ -117,7 +117,7 @@ export class FileWatcherManager {
       }
 
       // 忽略node_modules等目录
-      const ignoredDirs = ['node_modules', '.git', 'dist', 'build', '.autofm-backup'];
+      const ignoredDirs = ['node_modules', '.git', 'dist', 'build', '.autofm', '.autofm-backup'];
       for (const dir of ignoredDirs) {
         if (filePath.includes(dir)) {
           return true;

@@ -1,13 +1,18 @@
 {
-  "noCategory": ["assets", "images", "public", "static"],
-  "keyOrder": ["title", "date", "categories", "tags"],
-  "dateFormat": "YYYY-MM-DD HH:mm:ss",
+  "noCategory": ["assets", "images", "public", "static", "node_modules", "dist", "build"],
+  "keyOrder": ["title", "date", "updated", "categories", "tags", "abbrlink"],
+  "dateFormat": "YYYY/MM/DD HH:mm:ss",
   "timezone": "Asia/Shanghai",
   "categoryMode": "hierarchy",
   "protectedFields": ["date", "abbrlink", "permalink", "uuid"],
+  "abbrlink": {
+    "enabled": true,
+    "algorithm": "crc32",
+    "representation": "hex"
+  },
   "backup": {
     "enabled": false,
-    "directory": ".autofm-backup",
+    "directory": ".autofm/backup",
     "maxFiles": 10
   },
   "templates": {

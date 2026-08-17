@@ -17,9 +17,9 @@ export class AutoFrontMatterService {
   private backupManager: BackupManager;
   private templateManager: TemplateManager;
 
-  constructor(folderPath: string) {
+  constructor(folderPath: string, options: { configPath?: string } = {}) {
     this.folderPath = folderPath;
-    this.configManager = new ConfigManager(folderPath);
+    this.configManager = new ConfigManager(folderPath, options);
     this.frontMatterProcessor = new FrontMatterProcessor(folderPath, this.configManager);
     this.backupManager = new BackupManager(folderPath, this.configManager);
     this.templateManager = new TemplateManager(folderPath, this.configManager);
@@ -74,6 +74,8 @@ export class AutoFrontMatterService {
     return {
       folderPath: this.folderPath,
       watching: this.fileWatcherManager.isWatching(),
+      configPath: this.configManager.getConfigPath(),
+      configSource: this.configManager.getConfigSource(),
       config: this.configManager.getConfig(),
       watcherStats: this.fileWatcherManager.getWatcherStats()
     };
@@ -119,7 +121,7 @@ export class AutoFrontMatterService {
  * 启动服务器的主函数（保持向后兼容）
  */
 export async function startServer(tpath: string, args: CLIArgs): Promise<AutoFrontMatterService> {
-  const service = new AutoFrontMatterService(tpath);
+  const service = new AutoFrontMatterService(tpath, { configPath: args.config });
   await service.start(args);
   return service;
 }

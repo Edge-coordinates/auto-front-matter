@@ -1,13 +1,11 @@
 {
   "name": "autofm",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Advanced auto front matter generator with modular architecture, templates, backup, and monitoring",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "autofm": "./dist/index.js"
-  },
+  "bin": "./dist/index.js",
   "files": [
     "dist"
   ],
@@ -31,6 +29,7 @@
   "author": "Edge-coordinates",
   "license": "GPL-3.0-only",
   "type": "module",
+  "packageManager": "yarn@4.17.1",
   "dependencies": {
     "chokidar": "^4.0.1",
     "crc": "^4.3.2",
@@ -44,7 +43,7 @@
   },
   "devDependencies": {
     "@types/lodash": "^4.17.13",
-    "@types/node": "^22.7.6",
+    "@types/node": "^22.19.11",
     "lodash": "^4.17.21",
     "ts-node": "^10.9.2",
     "tsup": "^8.3.0",

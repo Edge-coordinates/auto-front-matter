@@ -1,63 +1,158 @@
 import fs from "fs-extra";
 import * as path from "path";
-import { AppConfig, DEFAULT_CONFIG, AutoFMError } from "../types/index.js";
-import { logger, readFileSafe, writeFileSafe, deepMerge } from "../utils/index.js";
+import { AppConfig, AutoFMError, ConfigSource, DEFAULT_CONFIG } from "../types/index.js";
+import { deepMerge, logger, writeFileSafe } from "../utils/index.js";
+import { DEFAULT_PRESET_NAME, getPreset, listPresetNames } from "./presets.js";
+import {
+  getDefaultProjectConfigPath,
+  isJsConfigPath,
+  loadConfigFile,
+  resolveConfigPath,
+  warnLegacyConfig,
+} from "./resolve.js";
+
+export { CONFIG_PRESETS, DEFAULT_PRESET_NAME, getPreset, listPresetNames } from "./presets.js";
+export {
+  getDefaultProjectConfigPath,
+  isJsConfigPath,
+  LEGACY_CONFIG_NAME,
+  PROJECT_CONFIG_DISPLAY_PATH,
+  PROJECT_CONFIG_RELATIVE_PATH,
+  resolveConfigPath,
+} from "./resolve.js";
+
+export interface ConfigManagerOptions {
+  configPath?: string;
+}
 
 /**
  * 配置管理器
  */
 export class ConfigManager {
   private config: AppConfig;
-  private configPath: string;
+  private configPath: string | null;
+  private configSource: ConfigSource;
   private folderPath: string;
+  private explicitConfigPath?: string;
 
-  constructor(folderPath: string) {
-    this.folderPath = folderPath;
-    this.configPath = path.join(folderPath, 'autofm-config.json');
-    this.config = { ...DEFAULT_CONFIG };
+  constructor(folderPath: string, options: ConfigManagerOptions = {}) {
+    this.folderPath = path.resolve(folderPath);
+    this.explicitConfigPath = options.configPath;
+    this.configPath = null;
+    this.configSource = "default";
+    this.config = deepMerge({}, DEFAULT_CONFIG);
   }
 
   /**
-   * 加载配置文件
+   * 加载配置文件。找不到文件时使用内置默认值，不会自动写盘。
    */
   async loadConfig(): Promise<AppConfig> {
     try {
-      if (fs.existsSync(this.configPath)) {
-        logger.info(`Loading config from: ${this.configPath}`);
-        const configContent = readFileSafe(this.configPath);
-        const userConfig = JSON.parse(configContent);
-        
-        // 深度合并用户配置和默认配置
-        this.config = deepMerge(DEFAULT_CONFIG, userConfig);
-        
-        // 验证配置
-        this.validateConfig();
-        
-        logger.info("Configuration loaded successfully");
-      } else {
-        logger.warn(`Config file not found at ${this.configPath}, using default configuration`);
-        // 创建默认配置文件
-        await this.saveConfig();
-      }
-    } catch (error) {
-      logger.error(`Failed to load config: ${error.message}`);
-      throw new AutoFMError(`Configuration load error: ${error.message}`, 'CONFIG_LOAD_ERROR');
-    }
+      const resolved = resolveConfigPath({
+        startDir: this.folderPath,
+        explicitPath: this.explicitConfigPath || process.env.AUTOFM_CONFIG,
+      });
 
-    return this.config;
+      if (!resolved) {
+        logger.info("No config file found, using built-in defaults");
+        this.config = deepMerge({}, DEFAULT_CONFIG);
+        this.configPath = null;
+        this.configSource = "default";
+        this.validateConfig();
+        return this.config;
+      }
+
+      if (resolved.deprecated) {
+        warnLegacyConfig(resolved.path);
+      }
+
+      logger.info(`Loading config from: ${resolved.path} (${resolved.source})`);
+      const userConfig = await loadConfigFile(resolved.path);
+      this.config = deepMerge(DEFAULT_CONFIG, userConfig);
+      this.configPath = resolved.path;
+      this.configSource = resolved.source;
+      this.validateConfig();
+      logger.info("Configuration loaded successfully");
+      return this.config;
+    } catch (error) {
+      if (error instanceof AutoFMError) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to load config: ${message}`);
+      throw new AutoFMError(`Configuration load error: ${message}`, "CONFIG_LOAD_ERROR");
+    }
   }
 
   /**
-   * 保存配置文件
+   * 保存配置文件。JS 配置不能回写；没有已解析路径时写入 .autofm/config.json。
    */
   async saveConfig(): Promise<void> {
     try {
+      if (this.configPath && isJsConfigPath(this.configPath)) {
+        throw new AutoFMError(
+          `Cannot overwrite JS config file: ${this.configPath}. Edit it manually.`,
+          "CONFIG_SAVE_ERROR",
+          this.configPath,
+        );
+      }
+
+      const target = this.configPath ?? getDefaultProjectConfigPath(this.folderPath);
       const configContent = JSON.stringify(this.config, null, 2);
-      writeFileSafe(this.configPath, configContent);
-      logger.info(`Configuration saved to: ${this.configPath}`);
+      writeFileSafe(target, `${configContent}\n`);
+      this.configPath = target;
+      if (this.configSource === "default") {
+        this.configSource = "project";
+      }
+      logger.info(`Configuration saved to: ${target}`);
     } catch (error) {
-      throw new AutoFMError(`Failed to save config: ${error.message}`, 'CONFIG_SAVE_ERROR');
+      if (error instanceof AutoFMError) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AutoFMError(`Failed to save config: ${message}`, "CONFIG_SAVE_ERROR");
     }
+  }
+
+  /**
+   * 在目标目录写入 .autofm/config.json（或 --config 指定的 JSON 路径）。
+   */
+  async initConfig(presetName: string = DEFAULT_PRESET_NAME, force: boolean = false): Promise<string> {
+    const preset = getPreset(presetName);
+    if (!preset) {
+      throw new AutoFMError(
+        `Unknown preset '${presetName}'. Available: ${listPresetNames().join(", ")}`,
+        "CONFIG_PRESET_ERROR",
+      );
+    }
+
+    const target = this.explicitConfigPath
+      ? path.resolve(this.folderPath, this.explicitConfigPath)
+      : getDefaultProjectConfigPath(this.folderPath);
+
+    if (isJsConfigPath(target)) {
+      throw new AutoFMError(
+        `init-config writes JSON only. Use a .json path, or create ${target} yourself.`,
+        "CONFIG_INIT_ERROR",
+        target,
+      );
+    }
+
+    if (fs.existsSync(target) && !force) {
+      throw new AutoFMError(
+        `Config already exists: ${target} (use --force to overwrite)`,
+        "CONFIG_EXISTS",
+        target,
+      );
+    }
+
+    writeFileSafe(target, `${JSON.stringify(preset, null, 2)}\n`);
+    this.config = deepMerge(DEFAULT_CONFIG, preset);
+    this.configPath = target;
+    this.configSource = this.explicitConfigPath ? "explicit" : "project";
+    this.validateConfig();
+    logger.info(`Wrote ${presetName} config to: ${target}`);
+    return target;
   }
 
   /**
@@ -65,6 +160,20 @@ export class ConfigManager {
    */
   getConfig(): AppConfig {
     return { ...this.config };
+  }
+
+  /**
+   * 已解析的配置文件路径。使用默认配置时为 null。
+   */
+  getConfigPath(): string | null {
+    return this.configPath;
+  }
+
+  /**
+   * 配置来源
+   */
+  getConfigSource(): ConfigSource {
+    return this.configSource;
   }
 
   /**
@@ -94,7 +203,6 @@ export class ConfigManager {
    * 验证配置
    */
   private validateConfig(): void {
-    // 验证必要的配置项
     if (!Array.isArray(this.config.noCategory)) {
       this.config.noCategory = [];
     }
@@ -111,32 +219,28 @@ export class ConfigManager {
       this.config.timezone = DEFAULT_CONFIG.timezone;
     }
 
-    // 验证备份配置
     if (this.config.backup) {
-      if (typeof this.config.backup.enabled !== 'boolean') {
+      if (typeof this.config.backup.enabled !== "boolean") {
         this.config.backup.enabled = false;
       }
       if (!this.config.backup.directory) {
         this.config.backup.directory = DEFAULT_CONFIG.backup.directory;
       }
-      if (typeof this.config.backup.maxFiles !== 'number' || this.config.backup.maxFiles < 1) {
+      if (typeof this.config.backup.maxFiles !== "number" || this.config.backup.maxFiles < 1) {
         this.config.backup.maxFiles = DEFAULT_CONFIG.backup.maxFiles;
       }
     } else {
       this.config.backup = { ...DEFAULT_CONFIG.backup };
     }
 
-    // 验证文件模式配置
     if (!this.config.filePatterns) {
       this.config.filePatterns = { ...DEFAULT_CONFIG.filePatterns };
     }
 
-    // 验证模板配置
     if (!this.config.templates) {
       this.config.templates = { ...DEFAULT_CONFIG.templates };
     }
 
-    // 验证自定义字段
     if (!this.config.customFields) {
       this.config.customFields = {};
     }
@@ -146,7 +250,9 @@ export class ConfigManager {
    * 重置为默认配置
    */
   resetToDefault(): void {
-    this.config = { ...DEFAULT_CONFIG };
+    this.config = deepMerge({}, DEFAULT_CONFIG);
+    this.configPath = null;
+    this.configSource = "default";
   }
 
   /**
@@ -187,8 +293,8 @@ export class ConfigManager {
   /**
    * 获取模板
    */
-  getTemplate(name: string = 'default') {
-    return this.config.templates[name] || this.config.templates['default'];
+  getTemplate(name: string = "default") {
+    return this.config.templates[name] || this.config.templates["default"];
   }
 
   /**
@@ -212,7 +318,7 @@ export class ConfigManager {
    * 删除模板
    */
   removeTemplate(name: string): boolean {
-    if (name === 'default') {
+    if (name === "default") {
       logger.warn("Cannot remove default template");
       return false;
     }
@@ -262,6 +368,6 @@ export class ConfigManager {
 /**
  * 创建配置管理器实例
  */
-export function createConfigManager(folderPath: string): ConfigManager {
-  return new ConfigManager(folderPath);
+export function createConfigManager(folderPath: string, options?: ConfigManagerOptions): ConfigManager {
+  return new ConfigManager(folderPath, options);
 }

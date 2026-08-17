@@ -1,97 +1,63 @@
----
-title: README
-date: 2025/09/09 03:18:38
----
-**It will break you blog, do not use it now！！！！**  
-
 # autofm
 
-本地安装和调试
-npm install -g .
+Automatic front matter generator for Markdown files.
 
-Auto Front-matter generator
+This tool rewrites your Markdown. Review the config, enable backup if needed, and try it on a copy first.
 
-It will auto generate frontMatter for markdown documents(.md) when file create  
-With init model, it can help update the frontMatter
-
-example:
-```
----
-title: testDocument // Based on filename
-date: 2024/10/14 11:28:26 // Based on current time
-categories:
-  - [hello, hi] // Based on the filePath
----
-```
-
-## Installation
-
-Install it as a command line tool via `npm -g`.
+## Install
 
 ```sh
-npm install autofm -g
-
+npm install -g autofm
 ```
 
-## Help
+## Quick start
+
+In the blog / docs repo you want to watch — not in this package repo:
 
 ```sh
-$ autofm --help
-Usage:
-  autofm --help // print help information
-  autofm // current folder as root
-  autofm --init (-i) // init model for the whole folder
-  autofm --force (-f) // use force model to cover the old front matter
-  autofm --ct (-c) // Re generate categories and tags
+autofm init-config --preset hexo
+autofm --init
+autofm
 ```
 
-## DEV
-```powershell
-pnpm build
-node ..\auto-front-matter\dist\index.js 
+That writes `.autofm/config.json` next to `_posts`, fills missing front matter, then watches for new files.
+
+```text
+<your-blog>/
+  .autofm/config.json
+  _posts/
+  _drafts/
 ```
 
+Do not put `autofm-config.json` at the content root or in this package root. See [docs/config.md](./docs/config.md).
 
-## Working logic
-### init model
-generate front-matter
+## Common commands
 
-### force model
-regenerate front-matter
-
-### CT model
-
-
-### normal model
-Add event: 
-if file is empty:
-initModel()
-else:
-updateModel()
-
-Change event:
-updateModel()
-
-updateModel():
-if oldMatter != new Matter:
-update()
-else:
-pass // Prevents add and change from being triggered repeatedly
-
-## Publish 
-```powershell
-pnpm build
-npm publish
+```sh
+autofm --help
+autofm --dir ./blog
+autofm --init              # backfill existing files, then exit
+autofm --force             # overwrite existing front matter
+autofm --ct                # regenerate categories and tags only
+autofm --config ./path/to/config.json
 ```
 
-## Reference
-### Referenced libraries
-https://github.com/sisyphsu/hexo-enhancer
-https://www.npmjs.com/package/auto-front-matter
-https://www.npmjs.com/package/hexo-auto-front-matter
+## Development
 
-### Refer to the tutorial
-How to make Global NPM Package: https://obaranovskyi.medium.com/own-global-npm-module-in-5-minutes-efb5d734b033
-https://www.freecodecamp.org/news/how-to-create-and-publish-your-first-npm-package/
-https://github.com/minimistjs/minimist
-https://github.com/paulmillr/chokidar
+```sh
+yarn install
+yarn build
+node ./dist/index.js --help
+```
+
+## Docs
+
+- [Getting started](./docs/getting-started.md)
+- [CLI](./docs/cli.md)
+- [Config](./docs/config.md)
+- [Templates](./docs/templates.md)
+- [Architecture](./docs/architecture.md)
+
+## License
+
+GPL-3.0-only

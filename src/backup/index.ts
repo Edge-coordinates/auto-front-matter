@@ -27,12 +27,15 @@ interface BackupInfo {
 export class BackupManager {
   private configManager: ConfigManager;
   private folderPath: string;
-  private backupDir: string;
 
   constructor(folderPath: string, configManager: ConfigManager) {
     this.folderPath = folderPath;
     this.configManager = configManager;
-    this.backupDir = path.join(folderPath, configManager.getBackupConfig().directory);
+  }
+
+  private get backupDir(): string {
+    const directory = this.configManager.getBackupConfig().directory || ".autofm/backup";
+    return path.isAbsolute(directory) ? directory : path.join(this.folderPath, directory);
   }
 
   /**
